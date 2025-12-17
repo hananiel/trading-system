@@ -65,5 +65,15 @@ npm test && (cd /home/hananiel/projects/trading-system && timeout 30 npm run wor
 
 1. **TDD First**: Write failing test before implementation
 2. **Deterministic Workflows**: All non-deterministic logic in activities
-3. **No Regression**: Tests + demo must pass before commits
+3. **No Regression**: Run regression tests before commits:
+   ```bash
+   npm run regression
+   ```
 4. **One Feature at a Time**: Build incrementally
+
+## Pre-commit Checklist
+
+- [ ] Unit tests pass: `npm test`
+- [ ] Integration demo works: `npm run regression`
+- [ ] Code follows TypeScript conventions
+- [ ] Documentation updated

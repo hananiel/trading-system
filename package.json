@@ -11,7 +11,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "echo 'No linting configured'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "regression": "./regression-test.sh"
   },
   "dependencies": {
     "@temporalio/activity": "^1.8.0",
