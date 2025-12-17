@@ -1,2 +1,7 @@
 ticker,state,action,confidence,triggeredRules,timestamp
 AAPL,WAIT,HOLD,0.5,["price > 50-DMA"],"2025-12-17T17:54:09.693Z"
+AAPL,WAIT,HOLD,0.5,["price > 50-DMA"],"2025-12-17T17:56:33.399Z"
+AAPL,WAIT,HOLD,0.5,["price > 50-DMA"],"2025-12-17T17:57:48.332Z"
+AAPL,WAIT,HOLD,0.5,["price > 50-DMA"],"2025-12-17T17:58:30.476Z"
+AAPL,WAIT,HOLD,0.5,["price > 50-DMA"],"2025-12-17T17:59:46.494Z"
+AAPL,WAIT,HOLD,0.5,["price > 50-DMA"],"2025-12-17T18:00:24.916Z"

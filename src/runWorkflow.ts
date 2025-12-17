@@ -1,7 +1,7 @@
 import { Client } from '@temporalio/client';
 import { tradeWorkflow } from './workflows/tradeWorkflow';
 
-async function runTradingWorkflow() {
+export async function runTradingWorkflow() {
   const client = new Client();
 
   try {
