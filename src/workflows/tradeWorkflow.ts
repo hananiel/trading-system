@@ -2,6 +2,7 @@ import * as workflow from '@temporalio/workflow';
 import { TradeState } from '../models/TradeState';
 import { evaluatePriceRuleActivity } from '../activities/rules';
 import { createTradeDecision } from '../activities/decision';
+import { appendDecisionToCsv } from '../activities/csvOutput';
 
 export interface TradeWorkflowInput {
   ticker: string;
@@ -22,6 +23,12 @@ export interface TradeWorkflowOutput {
     confidence: number;
     triggeredRules: string[];
     timestamp: string;
+  };
+  csvResult?: {
+    success: boolean;
+    filePath: string;
+    recordsWritten: number;
+    error?: string;
   };
 }
 
@@ -54,10 +61,16 @@ export async function tradeWorkflow(input: TradeWorkflowInput): Promise<TradeWor
     ruleResult
   });
   
+  // Persist decision to CSV
+  const csvResult = await workflow.proxyActivities({
+    startToCloseTimeout: '1 minute',
+  }).appendDecisionToCsv(decision);
+  
   return {
     action: 'HOLD',
     currentState,
     ruleResult,
-    decision
+    decision,
+    csvResult
   };
 }

@@ -4,6 +4,7 @@ import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { tradeWorkflow, TradeWorkflowInput } from '../src/workflows/tradeWorkflow';
 import { TradeState } from '../src/models/TradeState';
 import * as rules from '../src/activities/rules';
+import * as activities from '../src/activities/csvOutput';
 
 let testEnv: TestWorkflowEnvironment;
 
@@ -19,7 +20,7 @@ test('tradeWorkflow should start in WAIT state', async () => {
   const worker = await  Worker.create({
     connection: testEnv.nativeConnection,
     workflowsPath: require.resolve('../src/workflows/tradeWorkflow'),
-    activities: rules,
+    activities: { ...rules, ...activities },
     taskQueue: 'test',
   });
   const client = testEnv.nativeConnection;
@@ -36,5 +37,9 @@ test('tradeWorkflow should start in WAIT state', async () => {
     expect(result).toBeDefined();
     expect(result.currentState).toBe(TradeState.WAIT);
     expect(result.ruleResult).toBeDefined();
+    expect(result.decision).toBeDefined();
+    expect(result.csvResult).toBeDefined();
+    expect(result.csvResult?.success).toBe(true);
+    expect(result.csvResult?.recordsWritten).toBe(1);
   });
 });

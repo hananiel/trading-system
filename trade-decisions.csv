@@ -1,0 +1,2 @@
+ticker,state,action,confidence,triggeredRules,timestamp
+AAPL,WAIT,HOLD,0.5,["price > 50-DMA"],"2025-12-17T17:54:09.693Z"
