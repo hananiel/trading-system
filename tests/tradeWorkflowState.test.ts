@@ -3,6 +3,7 @@ import { Worker } from '@temporalio/worker';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { tradeWorkflow, TradeWorkflowInput } from '../src/workflows/tradeWorkflow';
 import { TradeState } from '../src/models/TradeState';
+import * as rules from '../src/activities/rules';
 
 let testEnv: TestWorkflowEnvironment;
 
@@ -16,8 +17,9 @@ afterAll(async () => {
 
 test('tradeWorkflow should start in WAIT state', async () => {
   const worker = await  Worker.create({
+    connection: testEnv.nativeConnection,
     workflowsPath: require.resolve('../src/workflows/tradeWorkflow'),
-    activities: require.resolve('../src/activities'),
+    activities: rules,
     taskQueue: 'test',
   });
   const client = testEnv.nativeConnection;
