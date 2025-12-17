@@ -1,11 +1,13 @@
 import { Worker } from '@temporalio/worker';
-import * as activities from './activities/rules';
+import * as ruleActivities from './activities/rules';
+import * as csvActivities from './activities/csvOutput';
 
 export async function runWorker() {
   const worker = await Worker.create({
     workflowsPath: require.resolve('./workflows'),
     activities: {
-      evaluatePriceRuleActivity: activities.evaluatePriceRuleActivity,
+      evaluatePriceRuleActivity: ruleActivities.evaluatePriceRuleActivity,
+      appendDecisionToCsv: csvActivities.appendDecisionToCsv,
     },
     taskQueue: 'trading-queue',
   });

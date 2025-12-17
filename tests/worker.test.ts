@@ -18,6 +18,10 @@ jest.mock('../src/activities/rules', () => ({
   evaluatePriceRuleActivity: jest.fn()
 }));
 
+jest.mock('../src/activities/csvOutput', () => ({
+  appendDecisionToCsv: jest.fn()
+}));
+
 describe('Worker', () => {
   beforeEach(() => {
     // Clear console mocks before each test
@@ -61,7 +65,8 @@ describe('Worker', () => {
     expect(mockCreate).toHaveBeenCalledWith({
       workflowsPath: expect.stringContaining('workflows'),
       activities: {
-        evaluatePriceRuleActivity: expect.any(Function)
+        evaluatePriceRuleActivity: expect.any(Function),
+        appendDecisionToCsv: expect.any(Function)
       },
       taskQueue: 'trading-queue'
     });
@@ -82,6 +87,16 @@ describe('Worker', () => {
     expect(mockConsoleLog).toHaveBeenCalledWith('🚀 Starting worker for trading workflows...');
     expect(mockConsoleLog).toHaveBeenCalledWith('🎯 Task queue: trading-queue');
     expect(mockConsoleLog).toHaveBeenCalledWith('📊 Activities loaded');
+    
+    // Verify both activities are available
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activities: expect.objectContaining({
+          evaluatePriceRuleActivity: expect.any(Function),
+          appendDecisionToCsv: expect.any(Function)
+        })
+      })
+    );
   });
 
   test('should call worker.run()', async () => {
