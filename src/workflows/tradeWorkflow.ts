@@ -10,6 +10,11 @@ export interface TradeWorkflowInput {
 export interface TradeWorkflowOutput {
   action: string;
   currentState: TradeState;
+  ruleResult?: {
+    isBullish: boolean;
+    triggered: boolean;
+    rule: string;
+  };
   decision?: {
     ticker: string;
     state: string;
@@ -42,11 +47,17 @@ export async function tradeWorkflow(input: TradeWorkflowInput): Promise<TradeWor
   }).evaluatePriceRuleActivity(dummyMarketData);
   
   // Create trade decision based on rule result
-  const decision = createTradeDecision(input.ticker, currentState, 'HOLD', ruleResult);
+  const decision = createTradeDecision({
+    ticker: input.ticker,
+    currentState,
+    action: 'HOLD',
+    ruleResult
+  });
   
   return {
     action: 'HOLD',
     currentState,
+    ruleResult,
     decision
   };
 }
