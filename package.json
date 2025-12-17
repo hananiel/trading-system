@@ -8,11 +8,17 @@
     "start": "ts-node src/index.ts",
     "worker": "ts-node src/worker.ts",
     "run-workflow": "ts-node src/runWorkflow.ts",
+    "demo": "ts-node src/runWorkflow.ts",
+    "demo-parallel": "ts-node src/runWorkflow.ts",
+    "demo-sequential": "ts-node src/runWorkflow.ts --sequential --delay 1000",
+    "demo-custom": "ts-node src/runWorkflow.ts",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "echo 'No linting configured'",
     "typecheck": "tsc --noEmit",
-    "regression": "./regression-test.sh"
+    "regression": "./regression-test.sh",
+    "clean": "rm -f trade-decisions.csv"
   },
   "dependencies": {
     "@temporalio/activity": "^1.8.0",
