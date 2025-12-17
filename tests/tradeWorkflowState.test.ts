@@ -48,5 +48,17 @@ test('tradeWorkflow should start in WAIT state', async () => {
     expect(result.marketData?.ticker).toBe('AAPL');
     expect(result.analysis?.overallSignal).toBeDefined();
     expect(['BUY', 'SELL', 'HOLD']).toContain(result.analysis?.overallSignal);
+    
+    // Check real market data fields
+    expect(result.marketData?.price).toBeDefined();
+    expect(result.marketData?.dayHigh).toBeDefined();
+    expect(result.marketData?.dayLow).toBeDefined();
+    expect(result.marketData?.previousClose).toBeDefined();
+    expect(result.marketData?.volume).toBeDefined();
+    
+    // Check that real market data was fetched
+    expect(result.marketData?.dayHigh).toBeDefined();
+    expect(result.marketData?.dayLow).toBeDefined();
+    expect(result.marketData?.previousClose).toBeDefined();
   });
 });

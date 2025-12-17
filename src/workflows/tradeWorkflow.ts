@@ -19,6 +19,9 @@ export interface TradeWorkflowOutput {
     movingAverage: number;
     volume: number;
     timestamp: string;
+    dayHigh?: number;
+    dayLow?: number;
+    previousClose?: number;
   };
   analysis?: {
     ruleResults: Array<{

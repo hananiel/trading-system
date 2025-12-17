@@ -81,6 +81,40 @@ describe('Market Data Activity', () => {
     expect(result.movingAverage).toBe(Math.round(result.movingAverage * 100) / 100);
   });
 
+  test('should include day high/low data', async () => {
+    const input: MarketDataInput = { ticker: 'AAPL' };
+    const result = await getMarketDataActivity(input);
+    
+    expect(result.dayHigh).toBeDefined();
+    expect(result.dayLow).toBeDefined();
+    expect(result.dayHigh).toBeGreaterThanOrEqual(result.price);
+    expect(result.dayLow).toBeLessThanOrEqual(result.price);
+    expect(result.previousClose).toBeDefined();
+  });
+
+  test('should handle API failures gracefully', async () => {
+    // Mock API failure by using an invalid ticker
+    const input: MarketDataInput = { ticker: 'INVALIDTICKER' };
+    
+    // This should fallback to simulated data
+    const result = await getMarketDataActivity(input);
+    
+    expect(result).toBeDefined();
+    expect(result.ticker).toBe('INVALIDTICKER');
+    expect(result.price).toBeGreaterThan(0);
+  });
+
+  test('should log appropriate messages', async () => {
+    const input: MarketDataInput = { ticker: 'AAPL' };
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    
+    await getMarketDataActivity(input);
+    
+    expect(consoleSpy).toHaveBeenCalledWith('📊 Fetching real market data for AAPL...');
+    
+    consoleSpy.mockRestore();
+  });
+
   test('should have proper TypeScript interface types', () => {
     const input: MarketDataInput = { ticker: 'TEST' };
     const result: Promise<MarketData> = getMarketDataActivity(input);
