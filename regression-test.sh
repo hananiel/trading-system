@@ -18,7 +18,7 @@ echo ""
 # Run integration demo
 echo "🚀 Running integration demo..."
 echo "Starting worker in background..."
-timeout 30 npm run worker &
+timeout 30s bash -c "cd /home/hananiel/projects/trading-system && npm run worker" &
 WORKER_PID=$!
 echo "Worker PID: $WORKER_PID"
 
@@ -26,7 +26,7 @@ echo "Worker PID: $WORKER_PID"
 sleep 3
 
 echo "Running workflow..."
-if npm run run-workflow; then
+if bash -c "cd /home/hananiel/projects/trading-system && npm run run-workflow"; then
     echo "✅ Integration demo passed!"
 else
     echo "❌ Integration demo failed!"

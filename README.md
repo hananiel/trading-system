@@ -15,6 +15,12 @@ Temporal-based staged trading workflow (TypeScript)
 - State persistence across workflow runs
 - Foundation for future state transitions
 
+### ✅ Feature 3: Rule Evaluation Activity
+- Deterministic rule evaluation via activity
+- Rule: Price > 50-DMA → bullish
+- Proper separation of non-deterministic logic
+- Comprehensive test coverage for rule logic
+
 ## Development Workflow
 
 ### Running Tests
