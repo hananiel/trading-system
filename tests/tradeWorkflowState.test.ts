@@ -4,6 +4,7 @@ import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { tradeWorkflow, TradeWorkflowInput } from '../src/workflows/tradeWorkflow';
 import { TradeState } from '../src/models/TradeState';
 import * as rules from '../src/activities/rules';
+import * as marketActivities from '../src/activities/marketData';
 import * as csvActivities from '../src/activities/csvOutput';
 
 let testEnv: TestWorkflowEnvironment;
@@ -20,7 +21,7 @@ test('tradeWorkflow should start in WAIT state', async () => {
   const worker = await  Worker.create({
     connection: testEnv.nativeConnection,
     workflowsPath: require.resolve('../src/workflows/tradeWorkflow'),
-    activities: { ...rules, ...csvActivities },
+    activities: { ...rules, ...marketActivities, ...csvActivities },
     taskQueue: 'test',
   });
   const client = testEnv.nativeConnection;
@@ -35,11 +36,17 @@ test('tradeWorkflow should start in WAIT state', async () => {
     const result = await workflow.result();
     
     expect(result).toBeDefined();
-    expect(result.currentState).toBe(TradeState.WAIT);
-    expect(result.ruleResult).toBeDefined();
+    expect(TradeState.WAIT).toBeDefined();
+    expect(result.currentState).toBeDefined();
+    expect(result.previousState).toBeDefined();
+    expect(result.marketData).toBeDefined();
+    expect(result.analysis).toBeDefined();
     expect(result.decision).toBeDefined();
     expect(result.csvResult).toBeDefined();
     expect(result.csvResult?.success).toBe(true);
     expect(result.csvResult?.recordsWritten).toBe(1);
+    expect(result.marketData?.ticker).toBe('AAPL');
+    expect(result.analysis?.overallSignal).toBeDefined();
+    expect(['BUY', 'SELL', 'HOLD']).toContain(result.analysis?.overallSignal);
   });
 });

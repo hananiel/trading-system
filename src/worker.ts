@@ -1,5 +1,6 @@
 import { Worker } from '@temporalio/worker';
 import * as ruleActivities from './activities/rules';
+import * as marketActivities from './activities/marketData';
 import * as csvActivities from './activities/csvOutput';
 
 export async function runWorker() {
@@ -7,6 +8,8 @@ export async function runWorker() {
     workflowsPath: require.resolve('./workflows'),
     activities: {
       evaluatePriceRuleActivity: ruleActivities.evaluatePriceRuleActivity,
+      evaluateMultipleRulesActivity: ruleActivities.evaluateMultipleRulesActivity,
+      getMarketDataActivity: marketActivities.getMarketDataActivity,
       appendDecisionToCsv: csvActivities.appendDecisionToCsv,
     },
     taskQueue: 'trading-queue',
