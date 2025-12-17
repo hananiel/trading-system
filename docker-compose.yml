@@ -1,0 +1,14 @@
+services:
+  temporal:
+    image: temporalio/temporal:latest
+    ports:
+      - "7233:7233"
+      - "8233:8233"  # Exposes built-in UI
+    command: 
+      - "server"
+      - "start-dev"
+      - "--dynamic-config-value"
+      - "history.enable_read_map=true"
+      - "--ip"
+      - "0.0.0.0"  # Critical: binds UI and gRPC to all interfaces
+      # No need for TEMPORAL_ADDRESS here

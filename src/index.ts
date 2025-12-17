@@ -1,0 +1,1 @@
+console.log('Trading system placeholder');
