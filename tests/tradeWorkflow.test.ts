@@ -1,5 +1,4 @@
 import { TestWorkflowEnvironment } from '@temporalio/testing';
-import { Worker } from '@temporalio/worker';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { tradeWorkflow, TradeWorkflowInput, TradeWorkflowOutput } from '../src/workflows/tradeWorkflow';
 
@@ -14,14 +13,15 @@ afterAll(async () => {
 });
 
 test('tradeWorkflow should complete and return HOLD', async () => {
-  const worker = await Worker.create({
-    connection: testEnv.nativeConnection,
+  const worker = await testEnv.createWorker({
+    workflowsPath: require.resolve('../src/workflows'),
+    activities: require.resolve('../src/activities'),
     taskQueue: 'test',
-    workflowsPath: require.resolve('../src/workflows/tradeWorkflow'),
   });
+  const client = testEnv.nativeConnection;
 
   await worker.runUntil(async () => {
-    const workflow = await testEnv.client.workflow.start(tradeWorkflow, {
+    const workflow = await client.workflow.start(tradeWorkflow, {
       workflowId: 'test-trade-workflow',
       taskQueue: 'test',
       args: [{ ticker: 'AAPL' } as TradeWorkflowInput]
@@ -31,5 +31,7 @@ test('tradeWorkflow should complete and return HOLD', async () => {
     
     expect(result).toBeDefined();
     expect(result.action).toBe('HOLD');
+    expect(result.currentState).toBe('WAIT');
+    expect(result.ruleResult).toBeDefined();
   });
 });

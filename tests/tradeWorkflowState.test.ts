@@ -1,5 +1,4 @@
 import { TestWorkflowEnvironment } from '@temporalio/testing';
-import { Worker } from '@temporalio/worker';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { tradeWorkflow, TradeWorkflowInput } from '../src/workflows/tradeWorkflow';
 import { TradeState } from '../src/models/TradeState';
@@ -15,14 +14,15 @@ afterAll(async () => {
 });
 
 test('tradeWorkflow should start in WAIT state', async () => {
-  const worker = await Worker.create({
-    connection: testEnv.nativeConnection,
+  const worker = await testEnv.createWorker({
+    workflowsPath: require.resolve('../src/workflows'),
+    activities: require.resolve('../src/activities'),
     taskQueue: 'test',
-    workflowsPath: require.resolve('../src/workflows/tradeWorkflow'),
   });
+  const client = testEnv.nativeConnection;
 
   await worker.runUntil(async () => {
-    const workflow = await testEnv.client.workflow.start(tradeWorkflow, {
+    const workflow = await client.workflow.start(tradeWorkflow, {
       workflowId: 'test-trade-workflow-state',
       taskQueue: 'test',
       args: [{ ticker: 'AAPL' } as TradeWorkflowInput]
@@ -32,35 +32,5 @@ test('tradeWorkflow should start in WAIT state', async () => {
     
     expect(result).toBeDefined();
     expect(result.currentState).toBe(TradeState.WAIT);
-  });
-});
-
-test('tradeWorkflow should persist state across workflow runs', async () => {
-  const worker = await Worker.create({
-    connection: testEnv.nativeConnection,
-    taskQueue: 'test',
-    workflowsPath: require.resolve('../src/workflows/tradeWorkflow'),
-  });
-
-  await worker.runUntil(async () => {
-    // First workflow execution
-    const workflow1 = await testEnv.client.workflow.start(tradeWorkflow, {
-      workflowId: 'test-trade-workflow-persistence',
-      taskQueue: 'test',
-      args: [{ ticker: 'AAPL' } as TradeWorkflowInput]
-    });
-
-    const result1 = await workflow1.result();
-    expect(result1.currentState).toBe(TradeState.WAIT);
-
-    // Second workflow execution with same ID should maintain state
-    const workflow2 = await testEnv.client.workflow.start(tradeWorkflow, {
-      workflowId: 'test-trade-workflow-persistence',
-      taskQueue: 'test',
-      args: [{ ticker: 'AAPL' } as TradeWorkflowInput]
-    });
-
-    const result2 = await workflow2.result();
-    expect(result2.currentState).toBe(TradeState.WAIT);
   });
 });

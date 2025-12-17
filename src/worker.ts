@@ -3,11 +3,13 @@ import { Worker } from '@temporalio/worker';
 async function runWorker() {
   const worker = await Worker.create({
     workflowsPath: require.resolve('./workflows'),
+    activitiesPath: require.resolve('./activities'),
     taskQueue: 'trading-queue',
   });
 
   console.log('🚀 Starting worker for trading workflows...');
   console.log('🎯 Task queue: trading-queue');
+  console.log('📊 Activities loaded');
   
   await worker.run();
 }
