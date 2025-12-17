@@ -1,6 +1,7 @@
 import * as workflow from '@temporalio/workflow';
 import { TradeState } from '../models/TradeState';
 import { evaluatePriceRuleActivity } from '../activities/rules';
+import { createTradeDecision } from '../activities/decision';
 
 export interface TradeWorkflowInput {
   ticker: string;
@@ -9,10 +10,13 @@ export interface TradeWorkflowInput {
 export interface TradeWorkflowOutput {
   action: string;
   currentState: TradeState;
-  ruleResult?: {
-    isBullish: boolean;
-    triggered: boolean;
-    rule: string;
+  decision?: {
+    ticker: string;
+    state: string;
+    action: string;
+    confidence: number;
+    triggeredRules: string[];
+    timestamp: string;
   };
 }
 
@@ -37,11 +41,12 @@ export async function tradeWorkflow(input: TradeWorkflowInput): Promise<TradeWor
     startToCloseTimeout: '1 minute',
   }).evaluatePriceRuleActivity(dummyMarketData);
   
-  // For now, always return HOLD regardless of rule result
-  // State transitions will come in future features
+  // Create trade decision based on rule result
+  const decision = createTradeDecision(input.ticker, currentState, 'HOLD', ruleResult);
+  
   return {
     action: 'HOLD',
     currentState,
-    ruleResult
+    decision
   };
 }
