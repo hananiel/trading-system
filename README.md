@@ -66,7 +66,20 @@ npm test
 
 ### Demo Execution
 
-**Single Ticker:**
+Requires two separate terminals with Docker Compose running:
+
+**Step 1: Start Infrastructure**
+```bash
+docker compose up -d
+npm run start-temporal
+```
+
+**Step 2A (Terminal 2): Start Worker**
+```bash
+npm run worker
+```
+
+**Step 2B (Terminal 3): Run Workflows**
 ```bash
 npm run demo
 ```
