@@ -102,11 +102,15 @@ npm run demo-custom
 ## Architecture
 
 ### Workflow States
-- **WAIT**: Initial state, monitoring market
-- **ANALYZE**: Processing market data through rules engine
-- **DECIDE**: Final trading decision based on rule consensus
-- **EXECUTE**: Trade execution (simulated)
-- **HOLD**: Maintain current position
+- **WAIT**: Initial state, monitoring market conditions
+- **ARMED**: Triggered by BUY/SELL signal, preparing for entry
+- **ENTER**: Trade execution (simulated), returns to WAIT after position entry
+
+### State Transition Logic
+- **WAIT → ARMED**: When rules generate BUY or SELL signal
+- **ARMED → ENTER**: Executes the BUY/SELL trade when armed
+- **ENTER → WAIT**: Always returns to WAIT after position entry
+- **ARMED → WAIT**: Disarms if no clear signal persists
 
 ### Rule Engine Logic
 1. **Price Rule**: Detects breakouts above/below moving averages
