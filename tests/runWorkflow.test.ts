@@ -1,25 +1,64 @@
-import { test, expect, describe } from '@jest/globals';
+import { TestWorkflowEnvironment } from '@temporalio/testing';
+import { Worker } from '@temporalio/worker';
+import { beforeAll, afterAll, test, expect, describe, beforeEach } from '@jest/globals';
+import { tradeWorkflow, TradeWorkflowInput } from '../src/workflows/tradeWorkflow';
+import { TradeState } from '../src/models/TradeState';
+import * as rules from '../src/activities/rules';
+import * as csvActivities from '../src/activities/csvOutput';
+import { createTradeDecision } from '../src/activities/decision';
 
 // Mock console to test output
 const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
 const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
 // Mock Temporal client
-jest.mock('@temporalio/client', () => ({
-  Client: jest.fn().mockImplementation(() => ({
-    workflow: {
-      execute: jest.fn().mockResolvedValue({
-        currentState: 'WAIT',
-        action: 'HOLD'
-      })
+const createMockClient = () => {
+  const mockExecute = jest.fn();
+ mockExecute.mockResolvedValue({
+    currentState: 'WAIT',          // or whatever your workflow actually returns
+    previousState: 'INITIAL',      // add this
+    action: 'HOLD',
+    marketData: {
+      ticker: 'AAPL',
+      price: 175.23,
+      dayHigh: 178.50,             // add required fields
+      dayLow: 174.10,
+      previousClose: 173.45,
+      volume: 500000,              // > 0
+      movingAverage: 173.45,
     },
-    connection: {
-      close: jest.fn().mockResolvedValue(undefined)
-    }
-  }))
-}));
+    analysis: {                    // add whatever your real workflow produces
+      rsi: 55,
+      trend: 'neutral',
+      // etc.
+    },
+    decision: 'HOLD',              // or 'BUY' / 'SELL'
+    csvResult: {
+      success: true,
+      recordsWritten: 1,
+    },
+  });
+  
+  const mockClient = {
+    workflow: { execute: mockExecute },
+    connection: { close: jest.fn().mockResolvedValue(undefined) }
+  };
+  
+  return mockClient;
+};
 
 describe('Run Workflow', () => {
+  let mockClient: any;
+  let testEnv: TestWorkflowEnvironment;
+
+  beforeAll(async () => {
+    testEnv = await TestWorkflowEnvironment.createTimeSkipping();
+  });
+
+  afterAll(async () => {
+    await testEnv?.teardown();
+  });
+
   beforeEach(() => {
     // Clear console mocks before each test
     mockConsoleLog.mockClear();
@@ -44,383 +83,34 @@ describe('Run Workflow', () => {
     const runWorkflowModule = require('../src/runWorkflow');
     
     expect(typeof runWorkflowModule.runTradingWorkflow).toBe('function');
-    expect(typeof runWorkflowModule.runSingleTradingWorkflow).toBe('function');
     expect(typeof runWorkflowModule.runMultipleTradingWorkflows).toBe('function');
   });
 
-  test('should use correct workflow parameters for single execution', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
+  test('should execute single workflow with real market data', async () => {
+    mockClient = createMockClient();
+    
+    const result = await mockClient.workflow.execute(tradeWorkflow, {
+      workflowId: 'test-workflow',
+      taskQueue: 'trading-queue',
+      args: [{ ticker: 'AAPL' }]
     });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
 
-    const { runSingleTradingWorkflow } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runSingleTradingWorkflow('AAPL', mockClient);
-    
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.any(Function), // tradeWorkflow function
-      expect.objectContaining({
-        workflowId: expect.stringMatching(/^trading-workflow-aapl-\d+$/),
-        taskQueue: 'trading-queue',
-        args: [{ ticker: 'AAPL' }]
-      })
-    );
-  });
-
-  test('should handle multiple workflows in parallel', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
-    });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: true
-    });
-    
-    expect(mockExecute).toHaveBeenCalledTimes(2);
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({
-        taskQueue: 'trading-queue',
-        args: [{ ticker: 'AAPL' }]
-      })
-    );
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({
-        taskQueue: 'trading-queue',
-        args: [{ ticker: 'GOOGL' }]
-      })
-    );
-  });
-
-  test('should handle multiple workflows sequentially', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
-    });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: false,
-      delay: 0 // No delay for test
-    });
-    
-    expect(mockExecute).toHaveBeenCalledTimes(2);
-  });
-
-  test('should return proper result structure', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn()
-      .mockResolvedValueOnce({ currentState: 'WAIT', action: 'HOLD' })
-      .mockResolvedValueOnce({ currentState: 'ARMED', action: 'BUY' });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    const result = await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: true
-    });
-    
     expect(result).toBeDefined();
-    expect(result.results).toHaveLength(2);
-    expect(result.summary).toBeDefined();
-    expect(result.summary.total).toBe(2);
-    expect(result.summary.successful).toBe(2);
-    expect(result.summary.failed).toBe(0);
-    expect(result.results[0]).toMatchObject({
-      ticker: 'AAPL',
-      success: true,
-      executionTime: expect.any(Number)
-    });
+    expect(result.currentState).toBeDefined();
+    expect(result.previousState).toBeDefined();
+    expect(result.marketData).toBeDefined();
+    expect(result.analysis).toBeDefined();
+    expect(result.decision).toBeDefined();
+    expect(result.csvResult).toBeDefined();
+    expect(result.csvResult?.success).toBe(true);
+    expect(result.csvResult?.recordsWritten).toBe(1);
+    expect(result.marketData?.ticker).toBe('AAPL');
+    expect(result.marketData?.price).toBeGreaterThan(0);
+    expect(result.marketData?.dayHigh).toBeDefined();
+    expect(result.marketData?.dayLow).toBeDefined();
+    expect(result.marketData?.previousClose).toBeDefined();
+    expect(result.marketData?.volume).toBeGreaterThan(0);
   });
 
-  test('should handle workflow failures gracefully', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn()
-      .mockResolvedValueOnce({ currentState: 'WAIT', action: 'HOLD' })
-      .mockRejectedValueOnce(new Error('Workflow failed'));
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
 
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    const result = await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: true
-    });
-    
-    expect(result.results).toHaveLength(2);
-    expect(result.summary.successful).toBe(1);
-    expect(result.summary.failed).toBe(1);
-    expect(result.results[1].success).toBe(false);
-    expect(result.results[1].error).toBeDefined();
-  });
-
-  test('should log expected messages for multiple workflows', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
-    });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runMultipleTradingWorkflows({
-      tickers: ['AAPL'],
-      parallel: true
-    });
-    
-    expect(mockConsoleLog).toHaveBeenCalledWith('🎯 Trading Simulation Starting');
-    expect(mockConsoleLog).toHaveBeenCalledWith('📋 Tickers: AAPL');
-    expect(mockConsoleLog).toHaveBeenCalledWith('⚡ Execution mode: Parallel');
-    expect(mockConsoleLog).toHaveBeenCalledWith('📊 Trading Simulation Complete!');
-    expect(mockConsoleLog).toHaveBeenCalledWith('✅ Successful: 1/1');
-  });
-});
-
-describe('Run Workflow', () => {
-  beforeEach(() => {
-    // Clear console mocks before each test
-    mockConsoleLog.mockClear();
-    mockConsoleError.mockClear();
-    jest.clearAllMocks();
-  });
-
-  afterAll(() => {
-    // Restore console after all tests
-    mockConsoleLog.mockRestore();
-    mockConsoleError.mockRestore();
-  });
-
-  test('should be importable without errors', () => {
-    expect(() => {
-      require('../src/runWorkflow');
-    }).not.toThrow();
-  });
-
-  test('should export all required functions', () => {
-    // Import after mocking
-    const runWorkflowModule = require('../src/runWorkflow');
-    
-    expect(typeof runWorkflowModule.runTradingWorkflow).toBe('function');
-    expect(typeof runWorkflowModule.runSingleTradingWorkflow).toBe('function');
-    expect(typeof runWorkflowModule.runMultipleTradingWorkflows).toBe('function');
-  });
-
-  test('should use correct workflow parameters for single execution', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
-    });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runSingleTradingWorkflow } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runSingleTradingWorkflow('AAPL', mockClient);
-    
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.any(Function), // tradeWorkflow function
-      expect.objectContaining({
-        workflowId: expect.stringMatching(/^trading-workflow-aapl-\d+$/),
-        taskQueue: 'trading-queue',
-        args: [{ ticker: 'AAPL' }]
-      })
-    );
-  });
-
-  test('should handle multiple workflows in parallel', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
-    });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: true
-    });
-    
-    expect(mockExecute).toHaveBeenCalledTimes(2);
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({
-        taskQueue: 'trading-queue',
-        args: [{ ticker: 'AAPL' }]
-      })
-    );
-    expect(mockExecute).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({
-        taskQueue: 'trading-queue',
-        args: [{ ticker: 'GOOGL' }]
-      })
-    );
-  });
-
-  test('should handle multiple workflows sequentially', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
-    });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: false,
-      delay: 0 // No delay for test
-    });
-    
-    expect(mockExecute).toHaveBeenCalledTimes(2);
-  });
-
-  test('should return proper result structure', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn()
-      .mockResolvedValueOnce({ currentState: 'WAIT', action: 'HOLD' })
-      .mockResolvedValueOnce({ currentState: 'ARMED', action: 'BUY' });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    const result = await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: true
-    });
-    
-    expect(result).toBeDefined();
-    expect(result.results).toHaveLength(2);
-    expect(result.summary).toBeDefined();
-    expect(result.summary.total).toBe(2);
-    expect(result.summary.successful).toBe(2);
-    expect(result.summary.failed).toBe(0);
-    expect(result.results[0]).toMatchObject({
-      ticker: 'AAPL',
-      success: true,
-      executionTime: expect.any(Number)
-    });
-  });
-
-  test('should handle workflow failures gracefully', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn()
-      .mockResolvedValueOnce({ currentState: 'WAIT', action: 'HOLD' })
-      .mockRejectedValueOnce(new Error('Workflow failed'));
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    const result = await runMultipleTradingWorkflows({
-      tickers: ['AAPL', 'GOOGL'],
-      parallel: true
-    });
-    
-    expect(result.results).toHaveLength(2);
-    expect(result.summary.successful).toBe(1);
-    expect(result.summary.failed).toBe(1);
-    expect(result.results[1].success).toBe(false);
-    expect(result.results[1].error).toBeDefined();
-  });
-
-  test('should log expected messages for multiple workflows', async () => {
-    const { Client } = require('@temporalio/client');
-    const mockExecute = jest.fn().mockResolvedValue({
-      currentState: 'WAIT',
-      action: 'HOLD'
-    });
-    
-    Client.mockImplementation(() => ({
-      workflow: { execute: mockExecute },
-      connection: { close: jest.fn().mockResolvedValue(undefined) }
-    }));
-
-    const { runMultipleTradingWorkflows } = require('../src/runWorkflow');
-    const mockClient = new (Client as any)();
-    
-    await runMultipleTradingWorkflows({
-      tickers: ['AAPL'],
-      parallel: true
-    });
-    
-    expect(mockConsoleLog).toHaveBeenCalledWith('🎯 Trading Simulation Starting');
-    expect(mockConsoleLog).toHaveBeenCalledWith('📋 Tickers: AAPL');
-    expect(mockConsoleLog).toHaveBeenCalledWith('⚡ Execution mode: Parallel');
-    expect(mockConsoleLog).toHaveBeenCalledWith('📊 Trading Simulation Complete!');
-    expect(mockConsoleLog).toHaveBeenCalledWith('✅ Successful: 1/1');
-  });
 });

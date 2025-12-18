@@ -15,6 +15,35 @@ describe('Market Data Activity', () => {
     expect(typeof result.timestamp).toBe('string');
   });
 
+  test('should return market data with enhanced fields', async () => {
+    const input: MarketDataInput = { ticker: 'AAPL' };
+    const result = await getMarketDataActivity(input);
+    
+    expect(result).toBeDefined();
+    expect(result.ticker).toBe('AAPL');
+    expect(result.price).toBeGreaterThan(0);
+    expect(result.movingAverage).toBeGreaterThan(0);
+    expect(result.dayHigh).toBeDefined();
+    expect(result.dayLow).toBeDefined();
+    expect(result.previousClose).toBeDefined();
+    expect(result.volume).toBeGreaterThan(0);
+    expect(typeof result.timestamp).toBe('string');
+  });
+
+  test('should handle API failures gracefully', async () => {
+    // Mock API failure by using an invalid ticker
+    const input: MarketDataInput = { ticker: 'INVALIDTICKER' };
+    
+    // This should fallback to simulated data
+    const result = await getMarketDataActivity(input);
+    
+    expect(result).toBeDefined();
+    expect(result.ticker).toBe('INVALIDTICKER');
+    expect(result.price).toBeGreaterThan(0);
+    expect(result.movingAverage).toBeGreaterThan(0);
+    expect(result.volume).toBeGreaterThan(0);
+  });
+
   test('should handle unknown ticker with default values', async () => {
     const input: MarketDataInput = { ticker: 'UNKNOWN' };
     const result = await getMarketDataActivity(input);

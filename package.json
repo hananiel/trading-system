@@ -26,7 +26,7 @@
     "@temporalio/common": "^1.8.0",
     "@temporalio/worker": "^1.8.0",
     "@temporalio/workflow": "^1.8.0",
-    "yahoo-finance": "^0.3.8"
+    "yahoo-finance2": "^3.10.2"
   },
   "devDependencies": {
     "@temporalio/testing": "^1.8.0",

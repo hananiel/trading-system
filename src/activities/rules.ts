@@ -166,17 +166,12 @@ export async function evaluateMultipleRulesActivity(data: PriceData): Promise<Mu
   const ruleResults = [priceRule, volumeRule, momentumRule, trendRule];
   const triggeredRules = ruleResults.filter(r => r.triggered);
   
-  // Weight the rules by importance
-  const weightedVotes = triggeredRules.map(r => {
-    let weight = 1;
-    if (r.rule.includes('price > 50-DMA')) weight = 1.5; // Technical analysis weight
-    if (r.rule.includes('volume ratio')) weight = 1.2; // Volume confirmation
-    if (r.rule.includes('momentum')) weight = 1.3; // Momentum confirmation
-    if (r.rule.includes('trend')) weight = 1.4; // Trend analysis weight
-    return { ...r, weight };
-});
-  
   // Calculate overall signal based on weighted votes
+  let bullishWeight = 0;
+  let bearishWeight = 0;
+  let totalWeight = 0;
+  
+  // Calculate weights for each triggered rule
   const weightedVotes = triggeredRules.map(r => {
     let weight = 1;
     if (r.rule.includes('price > 50-DMA')) weight = 1.5; // Technical analysis weight
@@ -207,15 +202,6 @@ export async function evaluateMultipleRulesActivity(data: PriceData): Promise<Mu
       overallSignal = 'HOLD';
       overallConfidence = 0.4; // Low confidence for conflicting signals
     }
-  }
-  }
-  }
-  
-  // Boost confidence if multiple rules agree
-  const agreementRatio = triggeredRules.length > 0 ? 
-    Math.max(bullishWeight, bearishWeight) / totalWeight : 0;
-  if (agreementRatio > 0.6) {
-    overallConfidence = Math.min(overallConfidence * 1.3, 1); // 30% boost for high agreement
   }
   
   return {

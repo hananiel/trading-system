@@ -1,5 +1,8 @@
-import * as yahooFinance from 'yahoo-finance';
-import '../types/yahoo-finance';
+import YahooFinance from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinance({
+  suppressNotices: ['yahooSurvey', 'ripHistorical']
+});
 
 export interface MarketData {
   ticker: string;
@@ -63,32 +66,31 @@ export async function getMarketDataActivity(input: MarketDataInput): Promise<Mar
 
 async function getCurrentQuote(ticker: string): Promise<{
   price: number;
-  dayHigh?: number;
-  dayLow?: number;
-  previousClose?: number;
-  volume?: number;
+  dayHigh: number;
+  dayLow: number;
+  previousClose: number;
+  volume: number;
+  ask?: number;
+  bid?: number;
+  marketCap?: number;
 } | null> {
   try {
-    const result = await yahooFinance.chart({
-      symbol: ticker,
-      period1: '1d',
-      interval1: '1m',
-      includePrePost: true
-    });
+    const result = await yahooFinance.quote(ticker);
     
-    if (!result || !result.quotes || result.quotes.length === 0) {
+    if (!result) {
       return null;
     }
     
-    const quote = result.quotes[0];
-    const latestClose = quote.close;
-    
+    const quote = result as any;
     return {
-      price: latestClose,
-      dayHigh: quote.high,
-      dayLow: quote.low,
-      previousClose: quote.open, // Opening price as "previous" close
-      volume: quote.volume
+      price: quote.regularMarketPrice || 0,
+      dayHigh: quote.regularMarketDayHigh || 0,
+      dayLow: quote.regularMarketDayLow || 0,
+      previousClose: quote.regularMarketPreviousClose || 0,
+      volume: quote.regularMarketVolume || 0,
+      ask: quote.regularMarketAsk || 0,
+      bid: quote.regularMarketBid || 0,
+      marketCap: quote.marketCap || 0
     };
   } catch (error) {
     console.error(`Error fetching current quote for ${ticker}:`, error);
@@ -101,17 +103,22 @@ async function getHistoricalData(ticker: string, days: number): Promise<Array<{
   volume?: number;
 }>> {
   try {
-    const result = await yahooFinance.chart({
-      symbol: ticker,
-      period1: `${days}d`,
-      interval1: '1d'
-    });
+    // Calculate date range for historical data
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
     
-    if (!result || !result.quotes || result.quotes.length === 0) {
+    const result = await yahooFinance.historical(ticker, {
+      period1: startDate.toISOString().split('T')[0], // YYYY-MM-DD format
+      period2: endDate.toISOString().split('T')[0],
+      interval: '1d'
+    }) as any[];
+    
+    if (!result || result.length === 0) {
       throw new Error(`No historical data for ${ticker}`);
     }
     
-    return result.quotes.map(quote => ({
+    return result.map((quote: any) => ({
       close: quote.close,
       volume: quote.volume
     }));
